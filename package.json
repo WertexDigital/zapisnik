@@ -1,0 +1,14 @@
+{
+  "name": "zapisnik",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "build:editor": "cd editor-src && npm ci && npm run build",
+    "tauri": "tauri",
+    "dev": "npm run build:editor && tauri dev",
+    "build": "npm run build:editor && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

@@ -1,0 +1,146 @@
+/* ===== Zápisník – okno aplikace ===== */
+:root {
+  --sidebar: #f3f2f7; --sidebar-line: rgba(0,0,0,.07); --hover: rgba(0,0,0,.05); --sel: rgba(var(--accent-rgb), .14);
+  --accent-ui: rgb(var(--accent-rgb)); --top-h: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --sidebar: #252528; --sidebar-line: rgba(255,255,255,.07); --hover: rgba(255,255,255,.06); --sel: rgba(var(--accent-rgb), .26); }
+}
+:root[data-theme="sepia"] { --sidebar: #ece3cf; --sidebar-line: rgba(90,60,20,.12); --hover: rgba(90,60,20,.07); }
+html, body { height: 100%; overflow: hidden; }
+body { overflow: hidden !important; user-select: none; -webkit-user-select: none; }
+#doc, #editor, .modal input, .modal select { user-select: text; -webkit-user-select: text; }
+button { font-family: inherit; }
+#app { display: grid; grid-template-columns: 270px 1fr 250px; height: 100vh; }
+body.no-inspector #app { grid-template-columns: 270px 1fr 0; }
+body.no-sidebar #app { grid-template-columns: 0 1fr 250px; }
+body.no-sidebar.no-inspector #app, body.focus-mode #app { grid-template-columns: 0 1fr 0; }
+body.no-sidebar #sidebar, body.focus-mode #sidebar, body.no-inspector #inspector, body.focus-mode #inspector { visibility: hidden; }
+.ib { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; flex: none; }
+.ib:hover { background: var(--hover); color: var(--text); }
+.ib:disabled { opacity: .35; pointer-events: none; }
+.ib.on { color: #f5b800; }
+.ib.on svg { fill: #f5b800; }
+
+/* levý panel */
+#sidebar { background: var(--sidebar); border-right: 1px solid var(--sidebar-line); display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  font: 13.5px/1.35 -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif; }
+.sb-top { height: var(--top-h); display: flex; align-items: center; justify-content: flex-end; padding: 0 10px; flex: none; }
+.os-win .sb-top { justify-content: flex-end; }
+.sb-search { margin: 0 12px 8px; display: flex; align-items: center; gap: 7px; padding: 0 10px; height: 32px; border-radius: 9px; background: var(--hover); color: var(--faint); flex: none; }
+.sb-search input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; min-width: 0; }
+.sb-search:focus-within { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .45); }
+#sb-list { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+.sec { font-size: 11.5px; font-weight: 650; color: var(--faint); padding: 14px 10px 5px; letter-spacing: .01em; }
+.row { display: flex; align-items: center; gap: 6px; height: 30px; padding-right: 8px; border-radius: 7px; cursor: default; color: var(--text); white-space: nowrap; }
+.row:hover { background: var(--hover); }
+.row.active { background: var(--sel); }
+.row .chev, .row .chev-space { width: 14px; flex: none; color: var(--faint); display: inline-flex; }
+.row .chev svg { width: 12px; height: 12px; transition: transform .12s; }
+.row .chev.open svg { transform: rotate(90deg); }
+.ric { display: inline-flex; color: var(--muted); flex: none; }
+.ric svg { width: 16px; height: 16px; }
+.row.dir .ric { color: var(--accent-ui); }
+.ric.fav { color: #f5b800; } .ric.fav svg { fill: #f5b800; }
+.rname { overflow: hidden; text-overflow: ellipsis; }
+.hit { padding: 7px 10px; border-radius: 8px; cursor: default; }
+.hit:hover { background: var(--hover); } .hit.active { background: var(--sel); }
+.h-t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h-s { font-size: 12px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; }
+.h-p { font-size: 11px; color: var(--faint); margin-top: 2px; }
+.muted-row { color: var(--faint); padding: 4px 10px; font-size: 12.5px; }
+.sb-foot { display: flex; align-items: center; gap: 2px; padding: 8px 10px; border-top: 1px solid var(--sidebar-line); flex: none; }
+#sb-count { flex: 1; text-align: right; font-size: 11.5px; color: var(--faint); padding-right: 6px; }
+
+/* hlavní část */
+#main { display: flex; flex-direction: column; min-width: 0; background: var(--bg); position: relative; }
+#topbar { height: var(--top-h); display: flex; align-items: center; gap: 4px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--sidebar-line); flex: none;
+  font: 13px -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif; }
+.show-sidebar { display: none !important; }
+body.no-sidebar .show-sidebar, body.focus-mode .show-sidebar { display: inline-flex !important; }
+.os-mac body.no-sidebar #topbar, .os-mac body.focus-mode #topbar { padding-left: 84px; }
+.tt { min-width: 0; padding: 0 8px; }
+#note-title { font-weight: 650; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#note-sub { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#topbar .tb-spacer { flex: 1; align-self: stretch; }
+#mode-seg { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; margin-right: 6px; }
+#mode-seg button { border: 0; background: transparent; color: var(--muted); font: 600 12.5px -apple-system, "Segoe UI", sans-serif; padding: 5px 14px; border-radius: 7px; cursor: pointer; }
+#mode-seg button.on { background: var(--bg-elev); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+#title-bar { display: none; padding: 7px 22px; border-bottom: 1px solid var(--sidebar-line); flex: none; }
+body.editing #title-bar { display: block; }
+#title-input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--muted); font: 600 13px -apple-system, "Segoe UI", sans-serif; }
+#title-input:focus { color: var(--text); }
+#content { position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#content #editor-wrap { position: absolute; inset: 0; }
+body[data-mode="edit"] #content { overflow: hidden; }
+#update-bar { display: none; align-items: center; gap: 12px; padding: 8px 16px; background: rgba(var(--accent-rgb), .12); border-bottom: 1px solid rgba(var(--accent-rgb), .25); font: 13px -apple-system, "Segoe UI", sans-serif; flex: none; }
+#update-bar.show { display: flex; }
+#update-bar span { flex: 1; }
+#update-bar button { border: 0; background: var(--accent-ui); color: #fff; font: 600 12.5px -apple-system, "Segoe UI", sans-serif; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+#update-bar button.ghost { background: transparent; color: var(--muted); }
+.empty-state { text-align: center; margin-top: 18vh; color: var(--muted); font-family: -apple-system, "Segoe UI", sans-serif; }
+.empty-state .es-icon svg { width: 48px; height: 48px; color: var(--faint); }
+.empty-state h2 { border: 0 !important; color: var(--text); }
+
+/* pravý panel */
+#inspector { background: var(--sidebar); border-left: 1px solid var(--sidebar-line); overflow-y: auto; min-width: 0; font: 13px/1.35 -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif; }
+.insp-top { height: var(--top-h); }
+#insp-body { padding: 0 8px 20px; }
+.toc { padding: 4px 10px; border-radius: 7px; cursor: default; color: var(--muted); }
+.toc:hover { background: var(--hover); color: var(--text); }
+.toc.l0 { color: var(--text); font-weight: 600; }
+.toc.l1 { padding-left: 22px; } .toc.l2 { padding-left: 34px; font-size: 12.5px; } .toc.l3, .toc.l4, .toc.l5 { padding-left: 46px; font-size: 12px; }
+.blink { display: flex; gap: 7px; align-items: center; padding: 5px 10px; border-radius: 7px; color: var(--text); cursor: default; }
+.blink:hover { background: var(--hover); }
+.blink svg { width: 14px; height: 14px; color: var(--faint); flex: none; }
+
+/* dialogy */
+.modal-wrap { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; background: rgba(0,0,0,.22); }
+.modal { background: var(--bg-elev); color: var(--text); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px 22px; width: 460px; max-width: calc(100vw - 40px); max-height: 80vh; overflow: auto;
+  font: 13.5px/1.45 -apple-system, "Segoe UI Variable", "Segoe UI", sans-serif; }
+.modal h3 { margin: 0 0 14px; font-size: 16px; }
+.m-small { width: 380px; }
+.m-label { display: block; color: var(--muted); margin-bottom: 6px; }
+.m-input, .modal select { width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; outline: 0; }
+.m-input:focus, .modal select:focus { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), .45); }
+.m-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.modal button { border: 1px solid var(--line); background: var(--soft); color: var(--text); font: 600 13px -apple-system, "Segoe UI", sans-serif; padding: 7px 14px; border-radius: 9px; cursor: pointer; }
+.modal button.primary { background: var(--accent-ui); color: #fff; border-color: transparent; }
+.m-quick { width: 580px; padding: 0; overflow: hidden; }
+.qo-input { width: 100%; border: 0; border-bottom: 1px solid var(--line); outline: 0; background: transparent; color: var(--text); font-size: 18px; padding: 16px 18px; }
+.qo-list { max-height: 50vh; overflow-y: auto; padding: 6px; }
+.qo-row { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 9px; cursor: default; }
+.qo-row svg { width: 17px; height: 17px; color: var(--faint); flex: none; }
+.qo-row.sel { background: var(--sel); }
+.qo-path { font-size: 11.5px; color: var(--faint); }
+.qo-row.create { color: var(--accent-ui); font-weight: 600; }
+.m-settings { width: 560px; }
+.set-grid { display: grid; grid-template-columns: 130px 1fr; gap: 10px 14px; align-items: center; }
+.set-grid > label { color: var(--muted); }
+.rng { display: flex; gap: 10px; align-items: center; } .rng input { flex: 1; accent-color: var(--accent-ui); } .rng span { width: 48px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seg { display: flex; background: var(--hover); border-radius: 9px; padding: 2px; }
+.modal .seg button { flex: 1; border: 0; background: transparent; padding: 5px 6px; font-weight: 550; color: var(--muted); border-radius: 7px; }
+.modal .seg button.on { background: var(--bg-elev); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.dots { display: flex; gap: 9px; }
+.modal .dots button { width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--c); border: 0; }
+.modal .dots button.on { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--c); }
+.set-preview { margin: 18px 0 6px; padding: 14px 16px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); user-select: text; }
+.sp-h { font-weight: 700; font-size: 1.3em; margin-bottom: 4px; }
+.set-sec { font-size: 11.5px; font-weight: 650; color: var(--faint); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+.set-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 4px 0; }
+.set-row .path { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx { position: fixed; z-index: 300; min-width: 210px; padding: 5px; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  font: 13px -apple-system, "Segoe UI", sans-serif; }
+.ctx-item { padding: 6px 10px; border-radius: 6px; cursor: default; color: var(--text); }
+.ctx-item:hover { background: var(--accent-ui); color: #fff; }
+.ctx-item.danger { color: rgb(var(--red)); } .ctx-item.danger:hover { background: rgb(var(--red)); color: #fff; }
+.ctx-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--bg-elev); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow);
+  padding: 9px 16px; border-radius: 10px; z-index: 400; font: 600 13px -apple-system, "Segoe UI", sans-serif; transition: opacity .3s; }
+.toast.out { opacity: 0; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(128,128,128,.32); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+@media print { #sidebar, #inspector, #topbar, #title-bar, #update-bar { display: none !important; } #app { display: block; height: auto; } #content { overflow: visible; } html, body { overflow: visible !important; height: auto; } }
+
+.os-win :root, .os-win { --top-h: 46px; }

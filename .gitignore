@@ -1,0 +1,12 @@
+node_modules/
+editor-src/node_modules/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/icons/android/
+src-tauri/icons/ios/
+ui/editor.bundle.js
+ui/selftest.js.bak
+.archiv/
+.build/
+.DS_Store
+*.key
