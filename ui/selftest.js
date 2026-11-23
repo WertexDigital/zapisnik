@@ -14,6 +14,11 @@ window.ZSelfTest = async () => {
     await wait(1200);
     log(document.querySelectorAll('#doc .callout').length > 0 && document.querySelectorAll('#doc .mermaid svg').length > 0, 'čtení: rámečky a diagramy');
     log(document.querySelectorAll('#insp-body .toc').length > 0, 'pravý panel: obsah');
+    { const c = document.getElementById('content'), sb = document.getElementById('sb-list');
+      const before = c.scrollTop; c.scrollTop = 400;
+      log(c.clientHeight <= innerHeight && c.scrollHeight > c.clientHeight && c.scrollTop > before, `posouvání poznámky (výška ${c.clientHeight}/${innerHeight}, obsah ${c.scrollHeight})`);
+      c.scrollTop = 0;
+      log(sb.clientHeight <= innerHeight, `posouvání levého panelu (výška ${sb.clientHeight}/${innerHeight})`); }
     const img = await new Promise((res) => { const i = new Image(); i.onload = () => res(i.naturalWidth); i.onerror = () => res(0); const imgRel = A.LIB.all.find((r) => /\.(jpe?g|png)$/i.test(r)) || ''; i.src = window.LOCAL_BASE + imgRel.split('/').map(encodeURIComponent).join('/'); });
     log(img > 0, `obrázky přes zapisnik:// (${img}px)`);
     const rel = await A.newNote('', 'Test A', '# Test A\n\n- [ ] úkol\n\n[[Test B]]\n\n> [!question]- Kolik je 2+2?\n> 4\n');

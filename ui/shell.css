@@ -11,7 +11,9 @@ html, body { height: 100%; overflow: hidden; }
 body { overflow: hidden !important; user-select: none; -webkit-user-select: none; }
 #doc, #editor, .modal input, .modal select { user-select: text; -webkit-user-select: text; }
 button { font-family: inherit; }
-#app { display: grid; grid-template-columns: 270px 1fr 250px; height: 100vh; }
+#app { display: grid; grid-template-columns: 270px 1fr 250px; grid-template-rows: minmax(0, 1fr); height: 100vh; overflow: hidden; }
+/* panely se nesmí natáhnout na výšku obsahu – jinak nejde posouvat */
+#sidebar, #main, #inspector { min-height: 0; max-height: 100vh; }
 body.no-inspector #app { grid-template-columns: 270px 1fr 0; }
 body.no-sidebar #app { grid-template-columns: 0 1fr 250px; }
 body.no-sidebar.no-inspector #app, body.focus-mode #app { grid-template-columns: 0 1fr 0; }
