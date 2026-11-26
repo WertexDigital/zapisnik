@@ -390,6 +390,32 @@ async function importObsidian() {
   await rescan();
   toast('Import hotový');
 }
+/** Celý sešit (rel = '') nebo jednu složku uloží jako ZIP – dá se poslat e-mailem, přes Disk, AirDrop… */
+async function exportZip(rel = '') {
+  await saveNow();
+  const name = basename((rel ? LIB.abs(rel) : LIB.root).replace(/\\/g, '/').replace(/\/$/, '')) || 'Poznámky';
+  let dest = await T.dialog.save({ title: rel ? 'Uložit složku jako ZIP' : 'Uložit celý sešit jako ZIP', defaultPath: name + '.zip', filters: [{ name: 'ZIP', extensions: ['zip'] }] });
+  if (!dest) return;
+  dest = String(dest); if (!/\.zip$/i.test(dest)) dest += '.zip';
+  toast('Balím poznámky…');
+  try {
+    const n = await invoke('export_zip', { dir: LIB.abs(rel), dest });
+    toast(`Hotovo – ${n} souborů v ZIPu`);
+    T.opener.revealItemInDir(dest).catch(() => {});
+  } catch (e) { dlg.info(String(e), 'Export se nepovedl'); }
+}
+/** ZIP s poznámkami (třeba od spolužáka) rozbalí do nové složky v sešitu. */
+async function importZip() {
+  const src = await T.dialog.open({ title: 'Vyber ZIP s poznámkami (rozbalí se do nové složky)', filters: [{ name: 'ZIP', extensions: ['zip'] }] });
+  if (!src) return;
+  const name = cleanName(basename(String(src).replace(/\\/g, '/')).replace(/\.zip$/i, '')) || 'Import';
+  const rel = unique('', name, '');
+  let n;
+  try { n = await invoke('import_zip', { zip: String(src), dest: LIB.abs(rel) }); } catch (e) { return dlg.info(String(e), 'Import se nepovedl'); }
+  S.expanded.add(rel); LS.set('expanded', [...S.expanded]);
+  await rescan();
+  toast(`Import hotový – ${n} souborů ve složce „${rel}“`);
+}
 async function setRoot(root) {
   await invoke('set_root', { root });
   if (!(await invoke('test_config').catch(() => ({}))).ZAPISNIK_ROOT) LS.set('root', root);
@@ -555,6 +581,7 @@ function treeMenu(e, rel, isDir) {
     { label: 'Přejmenovat…', run: async () => { const n = await dlg.prompt('Přejmenovat', 'Nový název:', isDir ? basename(rel) : titleOf(rel)); if (n) rename(rel, n, isDir); } },
   ];
   if (isNote) items.push({ label: S.favorites.includes(rel) ? 'Odebrat z oblíbených' : 'Přidat do oblíbených', run: () => toggleFavorite(rel) });
+  if (isDir) items.push({ label: 'Uložit složku jako ZIP…', run: () => exportZip(rel) });
   items.push({ label: IS_WIN ? 'Ukázat v Průzkumníku' : 'Ukázat ve Finderu', run: () => reveal(rel) }, '-', { label: 'Smazat…', danger: true, run: () => remove(rel, isDir) });
   contextMenu(e.clientX, e.clientY, items);
 }
@@ -586,6 +613,9 @@ async function openSettings() {
     <div class="set-sec">Složka s poznámkami</div>
     <div class="set-row"><code class="path">${esc(LIB.root)}</code><button data-a="root">Změnit…</button></div>
     <div class="set-row"><span>Převést poznámky z Obsidianu</span><button data-a="import">Importovat…</button></div>
+    <div class="set-sec">Sdílení</div>
+    <div class="set-row"><span>Uložit celý sešit jako ZIP (na poslání)</span><button data-a="export-zip">Exportovat…</button></div>
+    <div class="set-row"><span>Přidat poznámky ze ZIPu</span><button data-a="import-zip">Importovat ZIP…</button></div>
     <div class="set-sec">Aplikace</div>
     <div class="set-row"><span>Zápisník ${esc(version)}</span><button data-a="update">Zkontrolovat aktualizace</button></div>
     <div class="m-actions"><button class="primary" data-a="close">Hotovo</button></div>`, 'm-settings');
@@ -612,6 +642,8 @@ async function openSettings() {
     if (b.dataset.a === 'close') m.close();
     if (b.dataset.a === 'root') { m.close(); chooseRoot(); }
     if (b.dataset.a === 'import') { m.close(); importObsidian(); }
+    if (b.dataset.a === 'export-zip') { m.close(); exportZip(); }
+    if (b.dataset.a === 'import-zip') { m.close(); importZip(); }
     if (b.dataset.a === 'update') checkUpdates(true);
   });
   preview();

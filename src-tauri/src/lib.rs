@@ -150,6 +150,111 @@ fn copy_dir(from: String, to: String) -> Result<(), String> {
     copy_tree(Path::new(&from), Path::new(&to)).map_err(err)
 }
 
+type AnyErr = Box<dyn std::error::Error + Send + Sync>;
+
+/// Už zkomprimované soubory se do ZIPu jen uloží (rychlejší, menší by stejně nebyly).
+fn already_compressed(p: &Path) -> bool {
+    matches!(
+        p.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase()).as_deref(),
+        Some("png" | "jpg" | "jpeg" | "gif" | "webp" | "heic" | "pdf" | "zip" | "mp4" | "mov" | "mp3" | "m4a")
+    )
+}
+
+/// Zabalí složku do ZIPu; uvnitř je všechno ve složce se stejným názvem (po rozbalení vznikne jedna složka).
+fn zip_dir(dir: &Path, dest: &Path) -> Result<usize, AnyErr> {
+    use zip::{write::SimpleFileOptions, CompressionMethod};
+    let top = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "Poznámky".into());
+    let mut entries = Vec::new();
+    walk(dir, dir, &mut entries);
+    let tmp = PathBuf::from(format!("{}.zapisnik-tmp", dest.to_string_lossy()));
+    let mut w = zip::ZipWriter::new(fs::File::create(&tmp)?);
+    let deflate = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    let store = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+    let mut count = 0;
+    let mut add_all = || -> Result<(), AnyErr> {
+        for e in &entries {
+            let name = format!("{top}/{}", e.rel);
+            if e.dir {
+                w.add_directory(name, deflate)?;
+                continue;
+            }
+            let src = dir.join(&e.rel);
+            if src == tmp || src == dest {
+                continue; // ZIP ukládaný přímo do sešitu nebalíme sám do sebe
+            }
+            w.start_file(name, if already_compressed(&src) { store } else { deflate })?;
+            std::io::copy(&mut fs::File::open(&src)?, &mut w)?;
+            count += 1;
+        }
+        Ok(())
+    };
+    let finished = add_all().and_then(|_| w.finish().map(|_| ()).map_err(AnyErr::from));
+    if let Err(e) = finished {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
+    }
+    fs::rename(&tmp, dest)?;
+    Ok(count)
+}
+
+/// Rozbalí ZIP do složky `dest`. Nikdy nezapíše mimo ni; vynechá __MACOSX a skryté soubory.
+/// Když je v ZIPu všechno v jedné složce (ZIP z Finderu nebo ze Zápisníku), tu jednu úroveň přeskočí.
+fn unzip_to(zip_path: &Path, dest: &Path) -> Result<usize, AnyErr> {
+    let mut a = zip::ZipArchive::new(fs::File::open(zip_path)?)?;
+    let mut files: Vec<(usize, PathBuf)> = Vec::new();
+    for i in 0..a.len() {
+        let f = a.by_index(i)?;
+        if f.is_dir() {
+            continue;
+        }
+        let Some(p) = f.enclosed_name() else { continue };
+        let hidden = p.components().any(|c| {
+            let s = c.as_os_str().to_string_lossy();
+            s.starts_with('.') || s == "__MACOSX"
+        });
+        if !hidden {
+            files.push((i, p.to_path_buf()));
+        }
+    }
+    if files.is_empty() {
+        return Err("V ZIPu nejsou žádné poznámky ani soubory.".into());
+    }
+    let first = files[0].1.components().next().map(|c| c.as_os_str().to_owned());
+    let strip = files
+        .iter()
+        .all(|(_, p)| p.components().count() > 1 && p.components().next().map(|c| c.as_os_str().to_owned()) == first);
+    fs::create_dir_all(dest)?;
+    for (i, p) in &files {
+        let rel: PathBuf = if strip { p.components().skip(1).collect() } else { p.clone() };
+        let out = dest.join(rel);
+        if let Some(parent) = out.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut f = a.by_index(*i)?;
+        std::io::copy(&mut f, &mut fs::File::create(&out)?)?;
+    }
+    Ok(files.len())
+}
+
+/// Export sešitu nebo složky do ZIPu (běží mimo hlavní vlákno, okno nezamrzne). Vrací počet souborů.
+#[tauri::command]
+async fn export_zip(dir: String, dest: String) -> Result<usize, String> {
+    tauri::async_runtime::spawn_blocking(move || zip_dir(Path::new(&dir), Path::new(&dest)).map_err(err))
+        .await
+        .map_err(err)?
+}
+
+/// Import ZIPu do nové složky. Vrací počet rozbalených souborů.
+#[tauri::command]
+async fn import_zip(zip: String, dest: String) -> Result<usize, String> {
+    if Path::new(&dest).exists() {
+        return Err("Složka pro import už existuje.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || unzip_to(Path::new(&zip), Path::new(&dest)).map_err(err))
+        .await
+        .map_err(err)?
+}
+
 /// Smazání = přesun do Koše (dá se vrátit).
 #[tauri::command]
 fn trash_path(path: String) -> Result<(), String> {
@@ -240,7 +345,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             default_root, set_root, scan, read_many, read_text, write_text, write_base64, make_dir,
-            path_exists, rename_path, copy_file, copy_dir, trash_path, print_page, test_config, log_line
+            path_exists, rename_path, copy_file, copy_dir, trash_path, export_zip, import_zip, print_page, test_config, log_line
         ])
         .run(tauri::generate_context!())
         .expect("chyba při spuštění Zápisníku");

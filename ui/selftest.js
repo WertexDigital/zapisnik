@@ -43,6 +43,17 @@ window.ZSelfTest = async () => {
     document.querySelector('#quiz [data-a=close]')?.click();
     A.toggleFavorite('Test A.md');
     log(document.querySelector('#sb-list .ric.fav') != null, 'oblíbené');
+    { // export celého sešitu do ZIPu a import zpět do nové složky
+      const zip = A.LIB.root.replace(/[\\/]$/, '') + '.selftest.zip';
+      const n = await T.core.invoke('export_zip', { dir: A.LIB.root, dest: zip });
+      log(n >= A.LIB.notes.length, `export do ZIPu (${n} souborů)`);
+      const dest = A.LIB.abs('Import testu');
+      const m = await T.core.invoke('import_zip', { zip, dest });
+      await A.rescan();
+      log(m === n && A.LIB.notes.includes('Import testu/Test A.md'), `import ZIPu (${m} souborů)`);
+      await T.core.invoke('trash_path', { path: dest }); await T.core.invoke('trash_path', { path: zip });
+      await A.rescan();
+    }
   } catch (e) { out.push('FAIL výjimka: ' + e); }
   for (const l of out) await T.core.invoke('log_line', { msg: l });
   await T.process.exit(0);
