@@ -1,7 +1,7 @@
 {
   "name": "zapisnik",
   "private": true,
-  "version": "2.0.1",
+  "version": "2.1.0",
   "scripts": {
     "build:editor": "cd editor-src && npm ci && npm run build",
     "tauri": "tauri",
